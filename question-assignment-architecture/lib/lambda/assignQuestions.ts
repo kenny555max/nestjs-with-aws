@@ -25,13 +25,7 @@ export const handler = async () => {
     await client.connect();
 
     try {
-        // Logic for assigning questions to users based on region
-        // 1. Fetch all users
-        // 2. Determine their region
-        // 3. Assign questions based on the current cycle
-        // 4. Publish notifications to users
-
-        // Example for fetching users and assigning questions
+        // fetching users and assigning questions
         const users = await client.query('SELECT * FROM users');
 
         for (const user of users.rows) {

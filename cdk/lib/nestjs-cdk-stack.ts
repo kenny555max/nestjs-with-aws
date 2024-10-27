@@ -16,7 +16,10 @@ export class NestjsCdkStack extends cdk.Stack {
         const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
 
         // Create an ECR Repository
-        const repository = new ecr.Repository(this, 'NestjsRepository');
+        const repository = new ecr.Repository(this, 'NestjsRepository',
+            {
+                repositoryName: ""
+            });
 
         // Define Task Definition for Fargate
         const taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', {

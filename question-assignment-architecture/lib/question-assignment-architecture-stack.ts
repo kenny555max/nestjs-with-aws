@@ -147,7 +147,7 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
     });
 
     // Create an SNS topic for notifications
-    const questionNotificationTopic = new sns.Topic(this, 'QuestionNotificationTopic');
+    //const questionNotificationTopic = new sns.Topic(this, 'QuestionNotificationTopic');
 
     // Subscribe a Lambda function to the SNS topic (to notify users)
     questionNotificationTopic.addSubscription(new snsSubscriptions.LambdaSubscription(assignQuestionsLambda));
