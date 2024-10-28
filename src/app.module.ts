@@ -4,7 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { Question } from './question/entities/question.entity';
 import { CycleConfig } from './cycle/config/cycle-config.entity';
 import { QuestionService } from './question/question.service';
-import { CycleService } from './cycle/cycle.service';
+//import { CycleService } from './cycle/cycle.service';
 import { QuestionController } from './question/question.controller';
 import { CycleUpdateService } from './scheduler/cycle-update.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -38,6 +38,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         }),
     ],
     controllers: [QuestionController],
-    providers: [QuestionService, CycleService, CycleUpdateService],
+    providers: [
+        QuestionService,
+        //CycleService,
+        CycleUpdateService
+    ],
 })
 export class AppModule {}
