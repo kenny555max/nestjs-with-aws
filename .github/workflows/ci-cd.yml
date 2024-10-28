@@ -28,15 +28,15 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t social-network-app:latest .
+          docker build -t questionassignmentarchitecturestack-nestjsrepository04be01b2-r8hysenycn7l:latest .
 
       - name: Tag Docker image
         run: |
-          docker tag social-network-app:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/social-network-app:latest
+          docker tag questionassignmentarchitecturestack-nestjsrepository04be01b2-r8hysenycn7l:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/questionassignmentarchitecturestack-nestjsrepository04be01b2-r8hysenycn7l:latest
 
       - name: Push Docker image to ECR
         run: |
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/social-network-app:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/questionassignmentarchitecturestack-nestjsrepository04be01b2-r8hysenycn7l:latest
 
       - name: Setup NodeJS
         uses: actions/setup-node@v2
