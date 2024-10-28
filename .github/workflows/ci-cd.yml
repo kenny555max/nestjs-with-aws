@@ -28,7 +28,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $AWS_ECR_NAME:latest .
+          docker build -t social-network-app:latest .
 
       - name: Tag Docker image
         run: |
