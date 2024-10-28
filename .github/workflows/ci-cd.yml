@@ -1,45 +1,63 @@
-name: CI/CD Pipeline
+name: Deploy to AWS (Docker + CDK)
 
 on:
   push:
     branches:
-      - main  # or the branch you want to deploy from
+      - main
   pull_request:
     branches:
       - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Node.js
+      - name: Log in to Amazon ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: 'us-west-2'
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+      - name: Build Docker image
+        run: |
+          docker build -t social-network-app:latest .
+
+      - name: Tag Docker image
+        run: |
+          docker tag social-network-app:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/social-network-app:latest
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/social-network-app:latest
+
+      - name: Setup NodeJS
         uses: actions/setup-node@v2
         with:
-          node-version: '18'  # Change to your desired Node.js version
+          node-version: 18
 
-      - name: Install dependencies
-        run: npm install
+      - name: Cache Node.js dependencies
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ./node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('./package-lock.json') }}
 
-      - name: Deploy to AWS Elastic Beanstalk
-        run: |
-          cd .elasticbeanstalk
-          eb init -p node.js question-nestjs-beanstalk --region us-west-1
-          eb create Question-nestjs-beanstalk-env
-          eb deploy
+      - name: Install CDK dependencies
+        working-directory: ./question-assignment-architecture
+        run: npm ci
+        if: steps.cache.outputs.cache-hit != 'true'
 
-      - name: Run tests
-        run: npm test  # Adjust this command to your testing framework
-
-      - name: Build
-        run: npm run build  # If you have a build step
-
-      - name: Deploy
+      - name: Deploy CDK Stack
+        working-directory: ./question-assignment-architecture
+        run: npx cdk deploy --require-approval never
         env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}  # Assuming you set this up
-        run: |
-          echo "Deploying application..."
-          # Add your deployment script here
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: 'us-west-2'

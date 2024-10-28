@@ -29,7 +29,7 @@ export const handler = async () => {
         const users = await client.query('SELECT * FROM users');
 
         for (const user of users.rows) {
-            const question = await assignQuestionBasedOnRegion(user.region);
+            const question = await assignQuestionBasedOnRegion(user.region, client);
             await client.query('UPDATE users SET assignedQuestionId = $1 WHERE id = $2', [question.id, user.id]);
 
             // Notify user via SNS

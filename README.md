@@ -83,3 +83,76 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+
+
+###########
+
+# Question Assignment System Architecture
+
+## System Architecture Diagram
+
+```mermaid
+flowchart TB
+    ALB[Application Load Balancer]
+    ECS[ECS Fargate Service]
+    RDS[(PostgreSQL RDS)]
+    Lambda[Assignment Lambda]
+    SNS[SNS Topic]
+    SQS[Question Queue]
+    CW[CloudWatch Event Rule]
+    API[API Gateway]
+    
+    ALB --> ECS
+    ECS --> RDS
+    CW -->|Triggers Weekly| Lambda
+    Lambda --> RDS
+    Lambda --> SNS
+    SNS --> SQS
+    API -->|Question Queries| Lambda
+    
+    subgraph Auto Scaling
+    ECS
+    end
+```
+
+## Architecture Components
+
+### Load Balancer (ALB)
+- Distributes incoming traffic across multiple ECS tasks
+- Handles health checks and automated failover
+
+### ECS Fargate Service
+- Runs containerized application
+- Auto-scales based on demand
+- Managed container orchestration
+
+### RDS (PostgreSQL)
+- Stores questions and assignments
+- Handles data persistence
+- Manages database connections
+
+### Lambda Function
+- Processes weekly question assignments
+- Integrates with SNS for notifications
+- Handles regional question distribution
+
+### SNS Topic
+- Manages pub/sub messaging
+- Handles notification distribution
+- Integrates with SQS for message queuing
+
+### SQS Queue
+- Provides message queuing
+- Ensures reliable message delivery
+- Handles message persistence
+
+### CloudWatch Events
+- Schedules weekly triggers
+- Manages Lambda invocation
+- Handles timing precision
+
+### API Gateway
+- Manages API endpoints
+- Handles request routing
+- Provides API security

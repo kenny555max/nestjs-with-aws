@@ -9,9 +9,9 @@ export class QuestionScheduler {
 
     @Cron('0 19 * * MON') // Every Monday at 7 PM
     async handleCron() {
-        const users = await this.questionService.getAllUsers(); // Implement this method
+        const users = [] //await this.questionService.getAllUsers(); // Implement this method
         for (const user of users) {
-            await this.questionService.assignQuestionToUser(user.id);
+            //await this.questionService.assignQuestionToUser(user.id);
         }
     }
 }

@@ -1,11 +1,12 @@
 # syntax = docker/dockerfile:1.2
 
-# Use Node.js as the base image
-FROM node:22.5.1-alpine3.20
+# syntax = docker/dockerfile:1.2
+FROM node:20-alpine3.19
 
-
-# Install pnpm globally
-RUN npm install -g pnpm
+# Install pnpm using npm with additional dependencies
+RUN apk add --no-cache libc6-compat \
+    && npm install -g pnpm@8.15.1 \
+    && pnpm config set store-dir ~/.pnpm-store
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -14,14 +15,15 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml tsconfig.json  ./
 
 
-# Install dependencies using pnpm
-RUN pnpm install
+# Install dependencies
+RUN pnpm install --frozen-lockfile \
+    && pnpm store prune
 
-# Copy application source code
-COPY src/ ./src
+# Copy the rest of the source code
+COPY src/ ./src/
 
-# Build the application
-RUN pnpm build
+# Add build error logging
+RUN pnpm build || (echo "Build failed" && cat ~/.npm/_logs/*-debug.log && exit 1)
 
 # Set environment variables for production
 ENV NODE_ENV=production

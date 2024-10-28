@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Question Assignment System Architecture</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/9.4.3/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+            background-color: #000;
+        }
+        .mermaid {
+            margin: 20px 0;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+<h1>Question Assignment System Architecture</h1>
+
+<h2>System Architecture Diagram</h2>
+<div class="mermaid">
+    flowchart TB
+    ALB[Application Load Balancer]
+    ECS[ECS Fargate Service]
+    RDS[(PostgreSQL RDS)]
+    Lambda[Assignment Lambda]
+    SNS[SNS Topic]
+    SQS[Question Queue]
+    CW[CloudWatch Event Rule]
+    API[API Gateway]
+
+    ALB --> ECS
+    ECS --> RDS
+    CW -->|Triggers Weekly| Lambda
+    Lambda --> RDS
+    Lambda --> SNS
+    SNS --> SQS
+    API -->|Question Queries| Lambda
+
+    subgraph Auto Scaling
+    ECS
+    end
+</div>
+
+<script>
+    mermaid.initialize({ startOnLoad: true });
+</script>
+</body>
+</html>

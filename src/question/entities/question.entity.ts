@@ -16,5 +16,5 @@ export class Question {
     cycleStart: Date; // Date when the question is assigned
 
     @Column()
-    cycleDuration: number; // Duration in days
+    cycle: number;
 }

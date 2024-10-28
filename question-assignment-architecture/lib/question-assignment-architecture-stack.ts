@@ -58,7 +58,7 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
 
     // Add Container to Task Definition
     const container = taskDefinition.addContainer('nestjsContainer', {
-      image: ecs.ContainerImage.fromEcrRepository(repository),
+      image: ecs.ContainerImage.fromEcrRepository(repository, 'latest'),
       memoryLimitMiB: 1024,
       environment: {
         NODE_ENV: 'production',
@@ -121,10 +121,23 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'assignQuestions.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, 'lambda')),
+      memorySize: 1024,
+      timeout: cdk.Duration.minutes(5),
+      retryAttempts: 2,
       environment: {
         DB_ENDPOINT: dbInstance.dbInstanceEndpointAddress,
         DB_NAME: 'questiondb',
+        REGION_CONFIG: JSON.stringify({
+          'SG': { startQuestionId: 1, endQuestionId: 5 },
+          'US': { startQuestionId: 6, endQuestionId: 10 }
+        }),
+        CYCLE_DURATION_DAYS: '7',
+        //REDIS_ENDPOINT: redisCluster.clusterEndpoint // Add Redis for caching
       },
+      vpc,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+      }
     });
 
     // Define SNS topic
@@ -166,6 +179,16 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
       description: 'Trigger Lambda every Monday at 7 PM SGT',
     });
     rule.addTarget(new targets.LambdaFunction(assignQuestionsLambda));
+
+    // Add CloudWatch Alarms
+    /**
+    new cloudwatch.Alarm(this, 'LambdaErrorAlarm', {
+      metric: assignQuestionsLambda.metricErrors(),
+      threshold: 1,
+      evaluationPeriods: 1,
+      alarmDescription: 'Alert on question assignment failures'
+    });
+        */
 
     // Output the Load Balancer DNS and API Gateway URL
     new cdk.CfnOutput(this, 'LoadBalancerDNS', {
