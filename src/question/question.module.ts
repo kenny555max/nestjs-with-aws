@@ -1,7 +1,7 @@
 // src/questions/questions.module.ts
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RedisModule } from '@nestjs-modules/ioredis';
+//import { RedisModule } from '@nestjs-modules/ioredis';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QuestionsController } from './question.controller';
 import { QuestionsService } from './question.service';
@@ -13,6 +13,7 @@ import { Question } from '@/database/entities/question.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Question]),
+    /**
     RedisModule.forRootAsync({
       useFactory: () => ({
         config: {
@@ -21,6 +22,7 @@ import { Question } from '@/database/entities/question.entity';
         },
       }),
     }),
+        */
     ScheduleModule.forRoot(),
   ],
   controllers: [QuestionsController],
