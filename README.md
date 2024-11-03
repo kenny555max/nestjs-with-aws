@@ -1,158 +1,282 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Project: Question Rotation System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Overview
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This Question Rotation System is designed to assign and rotate questions for different global 
+regions, such as Singapore and the US, on a weekly cycle. Each region receives a unique 
+question per cycle, which is updated weekly. The application is built with NestJS and 
+leverages AWS services to handle deployment, scaling, and scheduled tasks.
 
-## Description
+The architecture currently includes core services for questions, authentication (auth), 
+and user management. It’s built to be extensible, allowing for more microservices to be 
+added in the future. As the number of services grows, we plan to enhance the architecture 
+to support scalability and improved management.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Table of Contents
 
-## Project setup
+1. [Architecture](#architecture)
+2. [Technologies](#technologies)
+3. [Local Setup](#local-setup)
+4. [AWS Deployment](#aws-deployment)
+5. [Code Structure](#code-structure)
+6. [Environment Variables](#environment-variables)
+7. [Improvement Plans](#improvement-plans)
+8. [JSDoc Style Guide](#jsdoc-style-guide)
+9. [Resources](#resources)
 
-```bash
-$ pnpm install
-```
+## Architecture
 
-## Compile and run the project
+The application uses NestJS for backend logic, with each microservice (e.g., /question, 
+/auth, /user) deployed as an individual container on AWS ECS Fargate. AWS Lambda is used to 
+handle scheduled tasks, such as updating the question cycle weekly. Amazon RDS (PostgreSQL) 
+serves as the database, and Redis is used for caching to enhance performance.
 
-```bash
-# development
-$ pnpm run start
+## Why This Architecture?
+Currently, this architecture is optimized to handle three main services, allowing each to 
+run in isolation for better fault tolerance and scalability. This setup ensures that each 
+service can scale independently based on demand, but as we add more services (e.g., if we 
+reach eight or more microservices), we’ll adjust the design for improved scalability and 
+manageability.
 
-# watch mode
-$ pnpm run start:dev
+### Key Components
 
-# production mode
-$ pnpm run start:prod
-```
+- **NestJS** Backend framework used for business logic and routing.
+- **Redis** for caching question data per region
+- **TypeORM** Database ORM for data management.
+- **AWS Lambda** Handles scheduled tasks like weekly question rotation.
+- **AWS ECS** for containerized microservices deployment, including separate services for /question, /auth, and /user, with an ECR repository for each service.
+- **AWS RDS (PostgreSQL)** as the primary database
+- **Amazon API Gateway** for routing and integrating with ECS services.
 
-## Run tests
+### Service flow and Decision Rationale
 
-```bash
-# unit tests
-$ pnpm run test
+1. **Separate ECS Services**: Each microservice (e.g., /question, /auth, /user) is isolated 
+into its own ECS Fargate service, promoting a modular microservices architecture.
 
-# e2e tests
-$ pnpm run test:e2e
+2. **Database Connectivity**: Each ECS service has its own task definition with environment 
+variables that allow communication with RDS and Redis.
 
-# test coverage
-$ pnpm run test:cov
-```
+3. **Redis Cache and Database**: Redis stores frequently accessed data, reducing database 
+load. If data is missing in Redis, the service fetches it directly from the database.
 
-## Resources
+## How It Works
 
-Check out a few resources that may come in handy when working with NestJS:
+1. **Weekly Question Rotation** AWS Lambda triggers a scheduled job via EventBridge every Monday 
+at 7 PM Singapore Time, ensuring each region receives a new question for the week.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+2. **Microservices on ECS** The /question, /auth, and /user services are deployed as Fargate tasks,
+enabling independent scaling and management.
 
-## Support
+3. **Caching with Redis** Redis stores frequently accessed questions, reducing database load.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Technologies
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **Node.js** (Runtime)
+- **NestJS** (Backend Framework)
+- **AWS Services** (RDS, Lambda, ECS, CloudWatch, EventBridge, CDK)
+- **Node.js** (Runtime)
+- **NestJS** (Backend Framework)
+- **TypeORM** (ORM)
+- **PostgreSQL** (Database)
+- **Redis** (In-memory Cache)
+- **AWS Services** (ECR, ECS, RDS, Lambda, CloudWatch, EventBridge, API Gateway, CDK)
 
 
+## Local Setup
 
-###########
+### Prerequisites
 
-# Question Assignment System Architecture
+1. **Node.js** and **npm** (Ensure Node.js is v14 or higher)
+2. **Docker** for local containerization
+3. AWS CLI configured with appropriate access
 
-## System Architecture Diagram
+### Steps
 
-```mermaid
-flowchart TB
-    ALB[Application Load Balancer]
-    ECS[ECS Fargate Service]
-    RDS[(PostgreSQL RDS)]
-    Lambda[Assignment Lambda]
-    SNS[SNS Topic]
-    SQS[Question Queue]
-    CW[CloudWatch Event Rule]
-    API[API Gateway]
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd <repository-directory>
+
+2. **Install Dependencies**:
+    ```bash
+    npm install
+
+3. **Configure environment variables**: Copy .env.example to .env and fill in the values 
+(see Environment Variables section).
+
+4. **Run the application**
+    ```bash
+   npm run start:dev
+   
+### AWS Deployment
     
-    ALB --> ECS
-    ECS --> RDS
-    CW -->|Triggers Weekly| Lambda
-    Lambda --> RDS
-    Lambda --> SNS
-    SNS --> SQS
-    API -->|Question Queries| Lambda
+1. We use AWS CDK for deploying the application components, automating the infrastructure 
+setup, and enabling seamless scaling. The application image is pushed to Amazon ECR, and 
+ECS Fargate handles containerized service deployment.
+
+### Steps
+
+1. **Build and push Docker Image**
+    ```bash
+    docker build -t <ecr-repository-name> .
+    docker tag <local-image-name> <ecr-repository-url>
+    docker push <ecr-repository-url>
+   
+2. **Deploy with AWS CDK**
+    ```bash
+    cdk deploy
+
+3. **Scheduled Lambda: AWS EventBridge triggers the Lambda to update the weekly cycle on 
+Mondays at 7 PM Singapore Time.**
+
+   **Code Structure**
+
+   - src/
+        - app.module.ts - Main application module
+        - auth
+            - auth.controller.ts
+            - auth.module.ts
+            - auth.service.ts
+        - common
+            - decorators
+                - get-current-user-id.decorator.ts
+                - get current-user.decorator.ts
+                - index.ts
+                - public.decorator.ts
+                - team-role.decorator.ts
+            - guards
+                - at.guard.ts
+                - index.ts
+                - role.guard.ts
+                - rt.guard.ts
+        - config
+            - env.config.ts
+        - database 
+            - dtos
+                - account.dto.ts
+                - index.ts
+                - question.dto.ts
+                - update-user.dto.ts
+            - entities
+                - Account.entity.ts
+                - index.ts
+                - question.entity.ts
+            - interfaces
+                - account.interface.ts
+                - index.ts
+                - permissions.interface.ts
+                - question-cache.interface.ts
+            - postgres
+                - postgres.provider.ts
+            - connection.ts
+        - identifier
+            - identifier.module.ts
+            - identifier.service.ts
+        - mailservice
+            - emailTemplates
+                - index.ts
+            - mailservice.controller.ts
+            - mailservice.module.ts
+            - mailservice.service.ts
+        - migrations
+            - 1635000000000-CreateQuestionsTable.ts
+        - question
+            - question.controller.ts
+            - question.module.ts
+            - question.service.ts
+        - user
+            - user.controller.ts
+            - user.module.ts
+            - user.service.ts
+        - utils
+            - error-manager.ts
+            - index.ts
+            - pagination.ts
+            - password-manager.ts
+            - quesry.ts
+        - app.controller.ts
+        - app.module.ts
+        - app.service.ts
+        - main.ts
     
-    subgraph Auto Scaling
-    ECS
-    end
-```
+4. **Environment Variables**
+   
+     - These environment variables are required to run the application both locally and on AWS:
+     - DB_HOST: Database host 
+     - DB_PORT: Database port 
+     - DB_USERNAME: Database username 
+     - DB_PASSWORD: Database password 
+     - DB_NAME: Database name 
+     - REDIS_HOST: Redis host (for caching)
+     - REDIS_PORT: Redis port
+     - JWT_ACCESS_TOKEN_SECRET 
+     - JWT_ACCESS_TOKEN_EXPIRES 
+     - JWT_REFRESH_TOKEN_SECRET
+     - JWT_REFRESH_TOKEN_EXPIRES
+     - JWT_VERIFICATION_TOKEN_EXPIRES
+     - JWT_VERIFICATION_TOKEN_SECRET
+     - AWS_REGION 
+     - AWS_ACCESS_KEY_ID
+     - AWS_ACCESS_KEY_SECRET
+     - AWS_SENDER_EMAIL
+    
+5. **Improvement Plans**
 
-## Architecture Components
+    As we anticipate growth in the number of services (e.g., beyond /question, /auth, 
+    and /user), we plan to adapt the architecture as follows:
 
-### Load Balancer (ALB)
-- Distributes incoming traffic across multiple ECS tasks
-- Handles health checks and automated failover
+    - **Enhanced API Gateway Routing**: When the number of services increases (e.g., beyond 
+    /question, /auth, /user), consider refining API Gateway setup to streamline routing 
+    and load balancing.
 
-### ECS Fargate Service
-- Runs containerized application
-- Auto-scales based on demand
-- Managed container orchestration
+   - **Distributed ECR Repositories**: Each service currently has a dedicated ECR repository.
+   This approach will be maintained but can be optimized by managing shared or versioned 
+   repositories if deployment complexity grows. This structure aligns well with the 
+   microservices model and enhances modularity.
 
-### RDS (PostgreSQL)
-- Stores questions and assignments
-- Handles data persistence
-- Manages database connections
+   - **Centralized Service Discovery and Load Balancing**:
+     - With more than three services, maintaining inter-service communication directly can 
+     become complex. Consider implementing AWS Service Discovery or using API Gateway as a 
+     central routing layer for improved manageability.
+     - A dedicated load balancer for each service or a single ALB with targeted listeners 
+     can help streamline routing and prevent traffic bottlenecks.
 
-### Lambda Function
-- Processes weekly question assignments
-- Integrates with SNS for notifications
-- Handles regional question distribution
+   - **Autoscaling Policies**:
+     - Ensure each service has autoscaling policies based on CPU or memory utilization. 
+        This setup, already applied to the current services, will need consistent monitoring 
+        and adjustment with additional services. 
+     - Amazon CloudWatch and AWS CloudFormation can automate monitoring, adjusting 
+     thresholds to optimize performance.
 
-### SNS Topic
-- Manages pub/sub messaging
-- Handles notification distribution
-- Integrates with SQS for message queuing
+   - **Enhanced Caching Strategies**: 
+     - Expanding the Redis setup to a cluster or using Amazon ElastiCache will improve resilience
+     and scaling if cache demands increase. 
+     - Consider using Redis for session management and broader caching across microservices 
+     to reduce latency and load on the database.
 
-### SQS Queue
-- Provides message queuing
-- Ensures reliable message delivery
-- Handles message persistence
+   - **Future Database Partitioning**: As the number of services grows, database load can 
+   increase. Planning for database partitioning (e.g., through Amazon RDS read replicas or 
+   sharding) may be beneficial to prevent scaling limitations.
 
-### CloudWatch Events
-- Schedules weekly triggers
-- Manages Lambda invocation
-- Handles timing precision
+6. **JSDoc Styled Guide**
 
-### API Gateway
-- Manages API endpoints
-- Handles request routing
-- Provides API security
+All methods and classes should use JSDoc comments for maintainability and readability. 
+This is crucial for understanding complex services and for junior developers to easily 
+navigate the code.
+
+**Example of JSDoc comment**
+    /**
+    * Daily cron job to refresh the cache.
+    * @returns {Promise<void>}
+    */
+    async handleDailyQuestionUpdate() {
+        await this.warmupCache();
+    }
+
+7. **Resources**
+
+- **AWS CDK Documentation** - AWS CDK guide for defining cloud infrastructure.
+- **NestJS Documentation** - NestJS documentation for framework-specific details.
+- **TypeORM Documentation** - ORM documentation for database interactions.
+- **Redis Documentation** - Redis for caching implementation.
+- **Docker Documentation** - Docker for containerization
