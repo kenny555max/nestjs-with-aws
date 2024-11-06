@@ -13,16 +13,12 @@ import { Question } from '@/database/entities/question.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Question]),
-    /**
-    RedisModule.forRootAsync({
-      useFactory: () => ({
-        config: {
-          host: process.env.REDIS_HOST,
-          port: parseInt(process.env.REDIS_PORT, 10),
-        },
-      }),
-    }),
-        */
+    //RedisModule.forRootAsync({
+    //  useFactory: () => ({
+    //    host: process.env.REDIS_HOST,
+    //    port: parseInt(process.env.REDIS_PORT, 10),
+    //  }),
+    //}),
     ScheduleModule.forRoot(),
   ],
   controllers: [QuestionsController],

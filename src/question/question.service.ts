@@ -30,6 +30,37 @@ export class QuestionsService implements OnModuleInit {
   ) {}
 
   /**
+   * Updates the user's response to an onboarding question.
+   *
+   * @param {string} questionId - The ID of the onboarding question to update.
+   * @param {string} userId - The ID of the user providing the response.
+   * @returns {Promise<Question>} The updated question object after saving the user's response.
+   * @throws {Error} If the question is not found or the user has already answered it.
+   */
+  async updateOnboardingQuestionResponse(questionId: string, userId: string): Promise<Question> {
+    // Retrieve the onboarding question by its ID
+    const question = await this.questionsRepository.findOne({ where: { id: questionId, isOnboarding: true } });
+
+    // Throw an error if the question is not found
+    if (!question) {
+      throw new Error('Onboarding question not found');
+    }
+
+    // Check if the user has already provided an answer to this question
+    const hasUserAnswered = question.answeredBy?.some((answer) => answer.userId === userId);
+    if (hasUserAnswered) {
+      throw new Error('User has already answered this question');
+    }
+
+    // Record the user's answer with the current timestamp
+    const userAnswer = { userId, answeredAt: new Date() };
+    question.answeredBy = question.answeredBy ? [...question.answeredBy, userAnswer] : [userAnswer];
+
+    // Save the updated question in the database and return the result
+    return await this.questionsRepository.save(question);
+  }
+
+  /**
    * Initializes the service by warming up the cache.
    * @returns {Promise<void>}
    */

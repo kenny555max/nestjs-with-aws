@@ -16,7 +16,6 @@ export class UserService {
       @InjectRepository(Account)
       private accountRepo: Repository<Account>,
   ) {}
-
   async findAll(query: QueryDto) {
     try {
       const {

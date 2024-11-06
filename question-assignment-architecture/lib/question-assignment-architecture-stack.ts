@@ -56,146 +56,152 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
       ],
     });
 
-    const {redis, redisSecurityGroup} = await this.redisSetup(props, vpc, ['SG', 'US'], new Date("11/11/2024"));
+      this.redisSetup(props, vpc, ['SG', 'US'], new Date("11/11/2024"))
+          .then(({ redis, redisSecurityGroup }) => {
+            const {
+              questionUpdatesTopic,
+              questionsQueue,
+              deadLetterQueue
+            } = this.questionAssignmentLambdaFunc(props, redis, vpc, redisSecurityGroup);
 
-    const {
-        questionUpdatesTopic,
-        questionsQueue,
-        deadLetterQueue,
-        questionAssignmentLambda
-    } = this.questionAssignmentLambdaFunc(props, redis, vpc, redisSecurityGroup);
+            // User Onboarding Lambda Function
+            const questionAssignmentLambda = new lambda.Function(this, 'UserOnboardingLambda', {
+              runtime: lambda.Runtime.NODEJS_18_X,
+              handler: 'index.handler',
+              code: lambda.Code.fromAsset(path.join(__dirname, './lambda/onboardUser')),
+              memorySize: 1024,
+              timeout: cdk.Duration.minutes(5),
+              environment: {
+                REDIS_ENDPOINT: redis.attrPrimaryEndPointAddress,
+                REDIS_PORT: redis.attrPrimaryEndPointPort,
+                ENVIRONMENT: props.environment,
+                REGION_CONFIG: JSON.stringify({
+                  'SG': { startQuestionId: 1, endQuestionId: 5 },
+                  'US': { startQuestionId: 6, endQuestionId: 10 }
+                })
+              },
+              vpc,
+              vpcSubnets: {
+                subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS
+              }
+            });
 
-    // Create databases for each service
-    const authDb = this.createDatabase('Auth', props, vpc);
-    const userDb = this.createDatabase('User', props, vpc);
-    const questionsDb = this.createDatabase('Questions', props, vpc);
+            // Create databases for each service
+            const authDb = this.createDatabase('Auth', props, vpc);
+            const userDb = this.createDatabase('User', props, vpc);
+            const questionsDb = this.createDatabase('Questions', props, vpc);
 
-    // ECS Cluster
-    const cluster = new ecs.Cluster(this, 'MicroservicesCluster', {
-      vpc,
-      containerInsights: true,
-    });
+            // ECS Cluster
+            const cluster = new ecs.Cluster(this, 'MicroservicesCluster', {
+              vpc,
+              containerInsights: true,
+            });
 
-    const authRepo = this.createRepository('Auth', props);
-    const userRepo = this.createRepository('User', props);
-    const questionsRepo = this.createRepository('Questions', props);
+            const authRepo = this.createRepository('Auth', props);
+            const userRepo = this.createRepository('User', props);
+            const questionsRepo = this.createRepository('Questions', props);
 
-    // Enhanced Questions Service Configuration
-    const questionsService = this.createEnhancedQuestionsService(
-        'Questions',
-        vpc,
-        redis,
-        questionUpdatesTopic,
-        questionsQueue,
-        props.environment,
-        questionsDb,
-        questionsRepo,
-        props
-    );
+            // Enhanced Questions Service Configuration
+            const questionsService = this.createEnhancedQuestionsService(
+                'Questions',
+                vpc,
+                redis,
+                questionUpdatesTopic,
+                questionsQueue,
+                props.environment,
+                questionsDb,
+                questionsRepo,
+                props
+            );
 
-    questionsQueue.grantConsumeMessages(questionsService.taskDefinition.taskRole);
-    redisSecurityGroup.addIngressRule(
-        questionsService.service.connections.securityGroups[0],
-        ec2.Port.tcp(6379),
-        'Allow questions service to access Redis'
-    );
+            questionsQueue.grantConsumeMessages(questionsService.taskDefinition.taskRole);
+            redisSecurityGroup.addIngressRule(
+                questionsService.service.connections.securityGroups[0],
+                ec2.Port.tcp(6379),
+                'Allow questions service to access Redis'
+            );
 
-    // CloudWatch Alarms for monitoring
-    this.createMonitoringAlarms(questionsService, questionAssignmentLambda, deadLetterQueue);
+            // CloudWatch Alarms for monitoring
+            this.createMonitoringAlarms(questionsService, questionAssignmentLambda, deadLetterQueue);
 
-    // Create services with different configurations
-    const authService = this.createFargateService(
-        'Auth',
-        authRepo,
-        authDb,
-        3000,
-        256,
-        512,
-        props.environment === 'production' ? 2 : 1,
-        props.environment === 'production' ? 4 : 2,
-        undefined,
-        props,
-        cluster
-    );
+            // Create services with different configurations
+            const authService = this.createFargateService(
+                'Auth',
+                authRepo,
+                authDb,
+                3000,
+                256,
+                512,
+                props.environment === 'production' ? 2 : 1,
+                props.environment === 'production' ? 4 : 2,
+                undefined,
+                props,
+                cluster
+            );
 
-    const userService = this.createFargateService(
-        'User',
-        userRepo,
-        userDb,
-        3000,
-        256,
-        512,
-        props.environment === 'production' ? 2 : 1,
-        props.environment === 'production' ? 4 : 2,
-        undefined,
-        props,
-        cluster
-    );
+            const userService = this.createFargateService(
+                'User',
+                userRepo,
+                userDb,
+                3000,
+                256,
+                512,
+                props.environment === 'production' ? 2 : 1,
+                props.environment === 'production' ? 4 : 2,
+                undefined,
+                props,
+                cluster
+            );
 
-    /**
-    const questionsService = this.createFargateService(
-        'Questions',
-        questionsRepo,
-        questionsDb,
-        3000,
-        512,
-        1024,
-        props.environment === 'production' ? 4 : 2,
-        props.environment === 'production' ? 8 : 4,
-        {
-          REDIS_ENDPOINT: redis.attrPrimaryEndPointAddress,
-          REDIS_PORT: redis.attrPrimaryEndPointPort,
-        },
-        props,
-        cluster
-    );
-     */
+            // API Gateway for routing
+            const api = new apigw.RestApi(this, 'MicroservicesApi', {
+              restApiName: `microservices-api-${props.environment}`,
+              deployOptions: {
+                stageName: props.environment,
+              },
+            });
 
-    // API Gateway for routing
-    const api = new apigw.RestApi(this, 'MicroservicesApi', {
-      restApiName: `microservices-api-${props.environment}`,
-      deployOptions: {
-        stageName: props.environment,
-      },
-    });
+            // Create API Gateway integrations
+            const createApiIntegration = (
+                service: ecs_patterns.ApplicationLoadBalancedFargateService,
+                path: string
+            ) => {
+              const integration = new apigw.HttpIntegration(
+                  `http://${service.loadBalancer.loadBalancerDnsName}/${path}`
+              );
 
-    // Create API Gateway integrations
-    const createApiIntegration = (
-        service: ecs_patterns.ApplicationLoadBalancedFargateService,
-        path: string
-    ) => {
-      const integration = new apigw.HttpIntegration(
-          `http://${service.loadBalancer.loadBalancerDnsName}/${path}`
-      );
+              const resource = api.root.addResource(path);
+              resource.addMethod('ANY', integration);
 
-      const resource = api.root.addResource(path);
-      resource.addMethod('ANY', integration);
+              // Add proxy resource for sub-paths
+              const proxyResource = resource.addResource('{proxy+}');
+              proxyResource.addMethod('ANY', integration);
+            };
 
-      // Add proxy resource for sub-paths
-      const proxyResource = resource.addResource('{proxy+}');
-      proxyResource.addMethod('ANY', integration);
-    };
+            createApiIntegration(authService, 'auth');
+            createApiIntegration(userService, 'user');
+            createApiIntegration(questionsService, 'questions');
 
-    createApiIntegration(authService, 'auth');
-    createApiIntegration(userService, 'user');
-    createApiIntegration(questionsService, 'questions');
+            // Outputs
+            new cdk.CfnOutput(this, 'ApiEndpoint', {
+              value: api.url,
+            });
 
-    // Outputs
-    new cdk.CfnOutput(this, 'ApiEndpoint', {
-      value: api.url,
-    });
+            new cdk.CfnOutput(this, 'AuthServiceUrl', {
+              value: authService.loadBalancer.loadBalancerDnsName,
+            });
 
-    new cdk.CfnOutput(this, 'AuthServiceUrl', {
-      value: authService.loadBalancer.loadBalancerDnsName,
-    });
+            new cdk.CfnOutput(this, 'UserServiceUrl', {
+              value: userService.loadBalancer.loadBalancerDnsName,
+            });
 
-    new cdk.CfnOutput(this, 'UserServiceUrl', {
-      value: userService.loadBalancer.loadBalancerDnsName,
-    });
-
-    new cdk.CfnOutput(this, 'QuestionsServiceUrl', {
-      value: questionsService.loadBalancer.loadBalancerDnsName,
-    });
+            new cdk.CfnOutput(this, 'QuestionsServiceUrl', {
+              value: questionsService.loadBalancer.loadBalancerDnsName,
+            });
+          })
+          .catch((error) => {
+            console.error("Error setting up resources:", error);
+          });
   }
 
   // Create ECR repositories for each service
@@ -241,18 +247,9 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
         }
     );
 
-    //const asset = new ecrAssets.DockerImageAsset(
-    //    this,
-    //    `${serviceName}Image`,
-    //    {
-    //      directory: `../${serviceName.toLowerCase()}-service/`,
-    //    }
-    //);
-
     const container = taskDefinition.addContainer(
         `${serviceName}Container`,
         {
-          //image: ecs.ContainerImage.fromDockerImageAsset(asset),
           image: ecs.ContainerImage.fromEcrRepository(repository),
           memoryLimitMiB: 1024,
           environment: {
@@ -285,7 +282,8 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
           publicLoadBalancer: true,
           desiredCount: desiredCount,
           listenerPort: 80,
-          targetProtocol: ecs.AppProtocol,
+          // @ts-ignore
+          targetProtocol: ecs.ApplicationProtocol.HTTP,
           healthCheckGracePeriod: cdk.Duration.seconds(60),
         }
     );
@@ -333,7 +331,6 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
     queue.grantConsumeMessages(taskRole);
 
     const container = taskDefinition.addContainer(`${serviceName}Container`, {
-      //image: ecs.ContainerImage.fromAsset(path.join(__dirname, `../${serviceName.toLowerCase()}-service`)),
       image: ecs.ContainerImage.fromEcrRepository(repository),
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: serviceName }),
       environment: {
@@ -387,8 +384,12 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
     //service to scale according to traffic, ensuring that it meets demand without over-provisioning,
     // which is particularly useful for scenarios where load can vary significantly.
     scaling.scaleOnRequestCount(`${serviceName}RequestScaling`, {
+      // @ts-ignore
+      targetGroup: service,
       requestsPerTarget: environment === 'production' ? 1000 : 500,
-      //targetGroup: service
+      maxCapacity: 10,
+      minCapacity: 1,
+      cooldown: 60,
     });
 
     return service;
@@ -565,7 +566,7 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
     const questionAssignmentLambda = new lambda.Function(this, 'QuestionAssignmentLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../lambda/question-assignment')),
+      code: lambda.Code.fromAsset(path.join(__dirname, './lambda/assignQuestion')),
       memorySize: 1024,
       timeout: cdk.Duration.minutes(5),
       environment: {
@@ -603,6 +604,8 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
     });
 
     // Schedule for question rotation
+    //this can be disabled then allow to run on production
+    //Use the NestJS invokeWeeklyQuestionsLambda (in lamda.service.ts) to manually trigger the Lambda as needed
     const rotationSchedule = new events.Rule(this, 'QuestionRotationSchedule', {
       schedule: events.Schedule.cron({
         minute: '0',
@@ -620,8 +623,7 @@ export class QuestionAssignmentArchitectureStack extends cdk.Stack {
     return {
       questionUpdatesTopic,
       questionsQueue,
-        deadLetterQueue,
-        questionAssignmentLambda
+        deadLetterQueue
     }
   }
 

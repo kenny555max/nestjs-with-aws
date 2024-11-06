@@ -21,6 +21,15 @@ export class Question {
     @Column({ type: 'boolean', default: true })
     isActive: boolean;
 
+    @Column({ type: 'boolean', default: false })
+    isOnboarding: boolean; // field to differentiate onboarding questions
+
+    @Column({ type: 'jsonb', nullable: true })
+    answeredBy: any[]; // Stores information on users who answered this question
+
+    @Column({ type: "boolean" })
+    answered; boolean;
+
     @CreateDateColumn()
     createdAt: Date;
 
