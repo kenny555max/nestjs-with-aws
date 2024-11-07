@@ -2,51 +2,49 @@
 
 ## Overview
 
-This Question Rotation System is designed to assign and rotate questions for different global 
-regions, such as Singapore and the US, on a weekly cycle. Each region receives a unique 
-question per cycle, which is updated weekly. The application is built with NestJS and 
-leverages AWS services to handle deployment, scaling, and scheduled tasks.
-
-The architecture currently includes core services for questions, authentication (auth), 
-and user management. It’s built to be extensible, allowing for more microservices to be 
-added in the future. As the number of services grows, we plan to enhance the architecture 
-to support scalability and improved management.
+This project is a dynamic, user-centric application designed with a modular backend 
+architecture. It leverages AWS services for efficient and scalable handling of various 
+operations, including user onboarding, weekly question assignments, media delivery, and 
+secure authentication. Recent updates have optimized data flow, caching, and backend 
+infrastructure, making the system more robust and scalable.
 
 ## Table of Contents
 
 1. [Architecture](#architecture)
-2. [Technologies](#technologies)
-3. [Local Setup](#local-setup)
+2. [New Features & Improvements](#new-features&improvements)
+3. [Setup and Installation](#local-setup)
 4. [AWS Deployment](#aws-deployment)
 5. [Code Structure](#code-structure)
 6. [Environment Variables](#environment-variables)
-7. [Improvement Plans](#improvement-plans)
+7. [Usage](#usage)
 8. [JSDoc Style Guide](#jsdoc-style-guide)
 9. [Resources](#resources)
 
 ## Architecture
 
-The application uses NestJS for backend logic, with each microservice (e.g., /question, 
-/auth, /user) deployed as an individual container on AWS ECS Fargate. AWS Lambda is used to 
-handle scheduled tasks, such as updating the question cycle weekly. Amazon RDS (PostgreSQL) 
-serves as the database, and Redis is used for caching to enhance performance.
-
-## Why This Architecture?
-Currently, this architecture is optimized to handle three main services, allowing each to 
-run in isolation for better fault tolerance and scalability. This setup ensures that each 
-service can scale independently based on demand, but as we add more services (e.g., if we 
-reach eight or more microservices), we’ll adjust the design for improved scalability and 
-manageability.
+The backend architecture is built on NestJS and leverages AWS Services to optimize for 
+scalability, caching, and efficient handling of user requests.
 
 ### Key Components
 
-- **NestJS** Backend framework used for business logic and routing.
-- **Redis** for caching question data per region
-- **TypeORM** Database ORM for data management.
-- **AWS Lambda** Handles scheduled tasks like weekly question rotation.
-- **AWS ECS** for containerized microservices deployment, including separate services for /question, /auth, and /user, with an ECR repository for each service.
-- **AWS RDS (PostgreSQL)** as the primary database
-- **Amazon API Gateway** for routing and integrating with ECS services.
+- **NestJS Controllers and Services**: Modularized to handle specific tasks, such as onboarding,
+question assignment, and authentication.
+    - **TypeORM** Database ORM for data management.
+
+- **AWS Lambda Functions**: 
+  - User Onboarding Lambda: Custom question recommendations for users based on gender and profile data.
+  - Weekly Question Assignment Lambda: Distributes weekly questions and manages caching.
+
+- **AWS Services**: 
+  - **S3 and CloudFront**: Used for media storage and global delivery with low latency. 
+  - **RDS (PostgreSQL)**: Primary data store for user and question data.
+  - **Redis Cache**: Caching for onboarding and question assignment data.
+  - **SNS and SQS**: Notifications and message queuing for asynchronous processing.
+  - **SES**: OTP email verification during the sign-up process.
+  - **NestJS** Backend framework used for business logic and routing.
+  - **Lambda** Handles scheduled tasks like weekly question rotation.
+  - **ECS** for containerized microservices deployment, including separate services for /question, /auth, and /user, with an ECR repository for each service.
+  - **API Gateway** for routing and integrating with ECS services.
 
 ### Service flow and Decision Rationale
 
@@ -69,17 +67,28 @@ enabling independent scaling and management.
 
 3. **Caching with Redis** Redis stores frequently accessed questions, reducing database load.
 
-## Technologies
 
-- **Node.js** (Runtime)
-- **NestJS** (Backend Framework)
-- **AWS Services** (RDS, Lambda, ECS, CloudWatch, EventBridge, CDK)
-- **Node.js** (Runtime)
-- **NestJS** (Backend Framework)
-- **TypeORM** (ORM)
-- **PostgreSQL** (Database)
-- **Redis** (In-memory Cache)
-- **AWS Services** (ECR, ECS, RDS, Lambda, CloudWatch, EventBridge, API Gateway, CDK)
+
+###   New Features and Improvements
+
+1. Enhanced Onboarding Flow
+   - Tailored Question Suggestions: Custom question recommendations based on user profile, 
+   especially tailored for female users.
+   - Efficient Data Flow: Questions and suggestions are stored in PostgreSQL and cached in 
+   Redis to reduce latency and database load.
+2. AWS Lambda Integrations
+   - User Onboarding Lambda: Handles personalized question assignment during onboarding.
+   - Weekly Question Assignment Lambda: Automatically distributes weekly questions with AWS 
+   EventBridge scheduling, providing seamless weekly updates.
+3. Improved Media Handling
+   - S3 and CloudFront: Media files are hosted in S3 and delivered globally through CloudFront.
+   Each question with media now returns a CloudFront URL for optimized access.
+4. Authentication & Verification
+   - SES OTP Verification: Integrated SES for OTP-based email verification, enhancing security
+   in the user sign-up process.
+5. Scalable Notification System
+   - SNS and SQS: SNS notifications and SQS message queues handle asynchronous processes such
+   as user assignments and system updates.
 
 
 ## Local Setup
@@ -108,6 +117,7 @@ enabling independent scaling and management.
     ```bash
    npm run start:dev
    
+
 ### AWS Deployment
     
 1. We use AWS CDK for deploying the application components, automating the infrastructure 
@@ -126,10 +136,8 @@ ECS Fargate handles containerized service deployment.
     ```bash
     cdk deploy
 
-3. **Scheduled Lambda: AWS EventBridge triggers the Lambda to update the weekly cycle on 
-Mondays at 7 PM Singapore Time.**
 
-   **Code Structure**
+**Code Structure**
 
    - src/
         - app.module.ts - Main application module
@@ -137,67 +145,72 @@ Mondays at 7 PM Singapore Time.**
             - auth.controller.ts
             - auth.module.ts
             - auth.service.ts
-        - common
-            - decorators
-                - get-current-user-id.decorator.ts
-                - get current-user.decorator.ts
+          - aws-s3 service
+              - aws.s3.service.ts
+          - common
+              - decorators
+                  - get-current-user-id.decorator.ts
+                  - get current-user.decorator.ts
+                  - index.ts
+                  - public.decorator.ts
+                  - team-role.decorator.ts
+              - guards
+                  - at.guard.ts
+                  - index.ts
+                  - role.guard.ts
+                  - rt.guard.ts
+            - config
+                - env.config.ts
+            - database 
+                - dtos
+                    - account.dto.ts
+                    - index.ts
+                    - question.dto.ts
+                    - update-user.dto.ts
+                - entities
+                    - Account.entity.ts
+                    - index.ts
+                    - question.entity.ts
+                - interfaces
+                    - account.interface.ts
+                    - index.ts
+                    - permissions.interface.ts
+                    - question-cache.interface.ts
+                - postgres
+                    - postgres.provider.ts
+                - connection.ts
+            - identifier
+                - identifier.module.ts
+                - identifier.service.ts
+            - lambda
+                - lambda.module.ts
+                - lambda.service.ts
+            - mailservice
+                - emailTemplates
+                    - index.ts
+                - mailservice.controller.ts
+                - mailservice.module.ts
+                - mailservice.service.ts
+            - migrations
+                - 1635000000000-CreateQuestionsTable.ts
+            - question
+                - question.controller.ts
+                - question.module.ts
+                - question.service.ts
+            - user
+                - user.controller.ts
+                - user.module.ts
+                - user.service.ts
+            - utils
+                - error-manager.ts
                 - index.ts
-                - public.decorator.ts
-                - team-role.decorator.ts
-            - guards
-                - at.guard.ts
-                - index.ts
-                - role.guard.ts
-                - rt.guard.ts
-        - config
-            - env.config.ts
-        - database 
-            - dtos
-                - account.dto.ts
-                - index.ts
-                - question.dto.ts
-                - update-user.dto.ts
-            - entities
-                - Account.entity.ts
-                - index.ts
-                - question.entity.ts
-            - interfaces
-                - account.interface.ts
-                - index.ts
-                - permissions.interface.ts
-                - question-cache.interface.ts
-            - postgres
-                - postgres.provider.ts
-            - connection.ts
-        - identifier
-            - identifier.module.ts
-            - identifier.service.ts
-        - mailservice
-            - emailTemplates
-                - index.ts
-            - mailservice.controller.ts
-            - mailservice.module.ts
-            - mailservice.service.ts
-        - migrations
-            - 1635000000000-CreateQuestionsTable.ts
-        - question
-            - question.controller.ts
-            - question.module.ts
-            - question.service.ts
-        - user
-            - user.controller.ts
-            - user.module.ts
-            - user.service.ts
-        - utils
-            - error-manager.ts
-            - index.ts
-            - pagination.ts
-            - password-manager.ts
-            - quesry.ts
-        - app.controller.ts
-        - app.module.ts
-        - app.service.ts
-        - main.ts
+                - pagination.ts
+                - password-manager.ts
+                - quesry.ts
+            - app.controller.ts
+            - app.module.ts
+            - app.service.ts
+            - main.ts
     
 4. **Environment Variables**
    
@@ -219,45 +232,22 @@ Mondays at 7 PM Singapore Time.**
      - AWS_ACCESS_KEY_ID
      - AWS_ACCESS_KEY_SECRET
      - AWS_SENDER_EMAIL
+
+
+5. **Usage**
+    - API Endpoints
+        - Onboarding Questions: POST /onboarding
+            - Description: Initiates onboarding, triggering the onboarding Lambda to generate questions based on profile data.
+        - Weekly Questions: POST /weekly-questions 
+          - Description: Triggers the weekly question assignment Lambda.
+        - Authentication: POST /auth/signup 
+          - Description: Includes SES-based OTP email verification.
     
-5. **Improvement Plans**
-
-    As we anticipate growth in the number of services (e.g., beyond /question, /auth, 
-    and /user), we plan to adapt the architecture as follows:
-
-    - **Enhanced API Gateway Routing**: When the number of services increases (e.g., beyond 
-    /question, /auth, /user), consider refining API Gateway setup to streamline routing 
-    and load balancing.
-
-   - **Distributed ECR Repositories**: Each service currently has a dedicated ECR repository.
-   This approach will be maintained but can be optimized by managing shared or versioned 
-   repositories if deployment complexity grows. This structure aligns well with the 
-   microservices model and enhances modularity.
-
-   - **Centralized Service Discovery and Load Balancing**:
-     - With more than three services, maintaining inter-service communication directly can 
-     become complex. Consider implementing AWS Service Discovery or using API Gateway as a 
-     central routing layer for improved manageability.
-     - A dedicated load balancer for each service or a single ALB with targeted listeners 
-     can help streamline routing and prevent traffic bottlenecks.
-
-   - **Autoscaling Policies**:
-     - Ensure each service has autoscaling policies based on CPU or memory utilization. 
-        This setup, already applied to the current services, will need consistent monitoring 
-        and adjustment with additional services. 
-     - Amazon CloudWatch and AWS CloudFormation can automate monitoring, adjusting 
-     thresholds to optimize performance.
-
-   - **Enhanced Caching Strategies**: 
-     - Expanding the Redis setup to a cluster or using Amazon ElastiCache will improve resilience
-     and scaling if cache demands increase. 
-     - Consider using Redis for session management and broader caching across microservices 
-     to reduce latency and load on the database.
-
-   - **Future Database Partitioning**: As the number of services grows, database load can 
-   increase. Planning for database partitioning (e.g., through Amazon RDS read replicas or 
-   sharding) may be beneficial to prevent scaling limitations.
-
+    - Updating Onboarding Questions
+    To tag onboarding questions with user responses, use the PATCH /questions/onboarding 
+   endpoint, which updates each question with relevant user data and response status.
+    
+    
 6. **JSDoc Styled Guide**
 
 All methods and classes should use JSDoc comments for maintainability and readability. 

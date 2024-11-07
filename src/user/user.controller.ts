@@ -5,7 +5,7 @@ import {
   Body,
   Controller,
   Get,
-    Post,
+  Post,
   Param,
   Put,
   Query, UploadedFile, UseInterceptors,
